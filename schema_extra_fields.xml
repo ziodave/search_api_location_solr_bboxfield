@@ -1,0 +1,13 @@
+<fields>
+  <!--
+    Dynamic fields for the "Location area (WKT)" type.
+  -->
+  <dynamicField name="bboxs_*" type="bbox" indexed="true" stored="true" multiValued="false" />
+  <dynamicField name="bboxm_*" type="bbox" indexed="true" stored="true" multiValued="true" />
+  <!--
+    Until https://issues.apache.org/jira/browse/SOLR-6781 is resolved, a static
+    field is needed instead. Replace "name" with the appropriate Solr field
+    name.
+  -->
+  <field name="bboxs_field_geodata$geom" type="bbox" indexed="true" stored="true" multiValued="false" />
+</fields>

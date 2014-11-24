@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * @file
+ * Provides support for Solr's BBoxField type for Search API Location Views.
+ */
+
+/**
+ * Implements hook_views_api().
+ */
+function search_api_location_solr_bboxfield_views_api() {
+  return array(
+    'api' => 3,
+  );
+}
+
+/**
+ * Implements hook_search_api_data_type_info().
+ */
+function search_api_location_solr_bboxfield_search_api_data_type_info() {
+  return array(
+    'search_api_location_solr_bboxfield' => array(
+      'name' => t('Location area (WKT)'),
+      'fallback' => 'string',
+      'prefix' => 'bbox',
+    ),
+  );
+}
+
+/**
+ * Implements hook_search_api_solr_documents_alter().
+ */
+function search_api_location_solr_bboxfield_search_api_solr_documents_alter(array &$documents, SearchApiIndex $index, array $items) {
+  foreach ($documents as $document) {
+    foreach ($document as $field => $value) {
+      if (substr($field, 0, 4) == 'bbox') {
+        $value = search_api_location_solr_bboxfield_format_bboxfield($value);
+        $document->setField($field, $value);
+      }
+    }
+  }
+}
+
+/**
+ * Transforms data in Geofield's WKT syntax into the one expected by Solr.
+ *
+ * @param string|string[] $value
+ *   The WKT value to transform, or an array of such values.
+ *
+ * @return string|string[]|null
+ *   The transformed value(s), or NULL if the transformation failed.
+ */
+function search_api_location_solr_bboxfield_format_bboxfield($value) {
+  if (is_array($value)) {
+    return array_filter(array_map('search_api_location_solr_bboxfield_format_bboxfield', $value));
+  }
+  if (!preg_match('/^[A-Z]+ \(+([-0-9., ]+)\)+$/', $value, $m)) {
+    $variables['@value'] = $value;
+    watchdog('search_api_location_solr_bboxfield', 'Unrecognized WKT format for "Location area (WKT)" field: "@value".', $variables);
+    return NULL;
+  }
+  $left = 180;
+  $right = -180;
+  $top = -90;
+  $bottom = 90;
+  foreach (explode(',', $m[1]) as $part) {
+    list($lon, $lat) = explode(' ', trim($part), 2);
+    $left = min($left, $lon);
+    $right = max($right, $lon);
+    $top = max($top, $lat);
+    $bottom = min($bottom, $lat);
+  }
+  if ($left > $right || $bottom > $top) {
+    $variables['@value'] = $value;
+    watchdog('search_api_location_solr_bboxfield', 'Unrecognized WKT format for "Location area (WKT)" field: "@value".', $variables);
+    return NULL;
+  }
+  // Recognize a rectangle across the dateline.
+  if ($right - $left > 180) {
+    list($right, $left) = array($left, $right);
+  }
+  return "ENVELOPE($left, $right, $top, $bottom)";
+}
+
+/**
+ * Implements hook_search_api_solr_query_alter().
+ */
+function search_api_location_solr_bboxfield_search_api_solr_query_alter(array &$call_args, SearchApiQueryInterface $query) {
+  $index = $query->getIndex();
+  $fields = $index->server()->getFieldNames($index);
+  foreach ($query->getOption('search_api_location_solr_bboxfield', array()) as $option) {
+    $field = $fields[$option['field']];
+    if (strpos($field, ':')) {
+      $link = l(t('edit server'), 'admin/config/search/search_api/server/' . $index->server . '/edit');
+      watchdog('search_api_location_solr_bboxfield', 'BBox filter on field @field had to be ignored because unclean field identifiers are used.', array('@field' => $option['field']), WATCHDOG_WARNING, $link);
+      continue;
+    }
+    $operator = isset($option['operator']) ? $option['operator'] :'Intersects';
+    $bbox = $option['bbox'];
+    $left = (float) $bbox['left'];
+    $right = (float) $bbox['right'];
+    $top = (float) $bbox['top'];
+    $bottom = (float) $bbox['bottom'];
+    $call_args['params']['fq'][] = "{!field f=$field score=area}$operator(ENVELOPE($left, $right, $top, $bottom))";
+  }
+}
+
+/**
+ * Returns all widget types that support geofields.
+ *
+ * @return array[]
+ *   An array of widget type information, in the same format as returned by
+ *   field_info_widget_types(), filtered to those widget types that support
+ *   geofields.
+ */
+function search_api_location_solr_bboxfield_get_geofield_widget_types() {
+  static $widgets;
+
+  if (!isset($widgets)) {
+    $widgets = array();
+    foreach (field_info_widget_types() as $name => $widget_type) {
+      // The "geocoder" widget is "Geocode from another field" – which of course
+      // makes no sense when using the widget in a different context.
+      if (in_array('geofield', $widget_type['field types']) && $name != 'geocoder') {
+        $widgets[$name] = $widget_type;
+      }
+    }
+  }
+  return $widgets;
+}
