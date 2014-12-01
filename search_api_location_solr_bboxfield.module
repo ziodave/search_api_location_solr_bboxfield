@@ -64,15 +64,15 @@ function search_api_location_solr_bboxfield_format_bboxfield($value) {
   if (is_array($value)) {
     return array_filter(array_map('search_api_location_solr_bboxfield_format_bboxfield', $value));
   }
-  if (!preg_match('/^[A-Z]+ \(+([-0-9., ]+)\)+$/', $value, $m)) {
+  if (!preg_match_all('/[(, ]([-+]?\d+(?:\.\d+)) ([-+]?\d+(?:\.\d+))[), ]/', $value, $matches, PREG_SET_ORDER)) {
     return NULL;
   }
   $left = 180;
   $right = -180;
   $top = -90;
   $bottom = 90;
-  foreach (explode(',', $m[1]) as $part) {
-    list($lon, $lat) = explode(' ', trim($part), 2);
+  foreach ($matches as $match) {
+    list(, $lon, $lat) = $match;
     $left = min($left, $lon);
     $right = max($right, $lon);
     $top = max($top, $lat);
