@@ -34,8 +34,18 @@ function search_api_location_solr_bboxfield_search_api_solr_documents_alter(arra
   foreach ($documents as $document) {
     foreach ($document as $field => $value) {
       if (substr($field, 0, 4) == 'bbox') {
-        $value = search_api_location_solr_bboxfield_format_bboxfield($value);
-        $document->setField($field, $value);
+        $parsed_value = search_api_location_solr_bboxfield_format_bboxfield($value);
+        if ($parsed_value) {
+          $document->setField($field, $parsed_value);
+        }
+        else {
+          $variables['%field'] = $field;
+          $variables['@type'] = $index->item_type;
+          $variables['@item'] = $document->item_id;
+          $variables['@value'] = $value;
+          watchdog('search_api_location_solr_bboxfield', 'Unrecognized WKT format for field %field on @type with ID @item: "@value".', $variables);
+          $document->setField($field, array());
+        }
       }
     }
   }
@@ -55,8 +65,6 @@ function search_api_location_solr_bboxfield_format_bboxfield($value) {
     return array_filter(array_map('search_api_location_solr_bboxfield_format_bboxfield', $value));
   }
   if (!preg_match('/^[A-Z]+ \(+([-0-9., ]+)\)+$/', $value, $m)) {
-    $variables['@value'] = $value;
-    watchdog('search_api_location_solr_bboxfield', 'Unrecognized WKT format for "Location area (WKT)" field: "@value".', $variables);
     return NULL;
   }
   $left = 180;
@@ -71,8 +79,6 @@ function search_api_location_solr_bboxfield_format_bboxfield($value) {
     $bottom = min($bottom, $lat);
   }
   if ($left > $right || $bottom > $top) {
-    $variables['@value'] = $value;
-    watchdog('search_api_location_solr_bboxfield', 'Unrecognized WKT format for "Location area (WKT)" field: "@value".', $variables);
     return NULL;
   }
   // Recognize a rectangle across the dateline.
