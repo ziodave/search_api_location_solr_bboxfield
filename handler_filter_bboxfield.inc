@@ -50,6 +50,7 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
       );
       if (module_hook($widget['module'], 'field_widget_settings_form')) {
         $field = $this->getFieldApiField();
+        $instance['entity_type'] = $instance['bundle'] = '';
         $instance['widget'] = $widget;
         $instance['widget']['type'] = $id;
         $instance['widget']['settings'] = $this->options["widget-$id"];
@@ -112,10 +113,13 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
       $instance['widget']['type'] = $widget_id;
       $instance['widget']['settings'] = $this->options["widget-$widget_id"];
       $langcode = $GLOBALS['language']->language;
-      $items = array($this->value ? $this->value : array());
+      $items = array($this->value ? $this->value : '');
       $delta = 0;
-      $parents = isset($form['#parents']) ? $form['#parents'] : array();
-      $parents[] = 'value';
+      if (!isset($form['#parents'])) {
+        $form['#parents'] = array();
+      }
+      $parents = $form['#parents'];
+      $parents[] = $this->options['expose']['identifier'];
       $element = array(
         '#entity' => NULL,
         '#entity_type' => NULL,
@@ -123,6 +127,7 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
         '#field_name' => $field ? $field['field_name'] : NULL,
         '#language' => $langcode,
         '#field_parents' => $parents,
+        '#parents' => $parents,
         '#columns' => $field ? array_keys($field['columns']) : array(),
         '#title' => '',
         '#description' => '',
@@ -135,10 +140,6 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
     }
   }
 
-  function accept_exposed_input($input) {
-    return parent::accept_exposed_input($input);
-  }
-
   /**
    * {@inheritdoc}
    */
@@ -146,9 +147,9 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
     while (isset($this->value[0])) {
       $this->value = $this->value[0];
     }
-    if (!empty($this->value['wkt'])) {
+    if (!empty($this->value['geom'])) {
       if (empty($this->value['left'])) {
-        geofield_compute_values($this->value);
+        $this->value = geofield_compute_values($this->value);
       }
       $bbox = array_intersect_key($this->value, array('left' => 1, 'bottom' => 1, 'right' => 1, 'top' => 1));
     }
