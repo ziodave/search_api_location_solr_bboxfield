@@ -153,7 +153,7 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
       $bbox = array_intersect_key($this->value, array('left' => 1, 'bottom' => 1, 'right' => 1, 'top' => 1));
     }
     elseif (is_scalar($this->value)) {
-      $bbox = SearchApiViewsHandlerArgumentLocationBbox::parseCorners($this->value);
+      $bbox = $this->parseCorners($this->value);
     }
     if (empty($bbox)) {
       return;
@@ -183,6 +183,28 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
       }
     }
     return array();
+  }
+
+  /**
+   * Parses the comma-separated representation of a rectangle into its parts.
+   *
+   * @param string $bbox
+   *   The bounding box argument to parse, in the format: left,bottom,right,top.
+   *
+   * @return array|null
+   *   NULL if $bbox didn't have the correct format. Otherwise, an associative
+   *   array with the rectangle coordinates in the keys:
+   *   - left
+   *   - bottom
+   *   - right
+   *   - top
+   */
+  protected function parseCorners($bbox) {
+    $parts = explode(',', $bbox);
+    if (count($parts) == 4) {
+      return array_combine(array('left', 'bottom', 'right', 'top'), $parts);
+    }
+    return NULL;
   }
 
 }
