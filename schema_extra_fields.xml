@@ -5,9 +5,13 @@
   <dynamicField name="bboxs_*" type="bbox" indexed="true" stored="true" multiValued="false" />
   <dynamicField name="bboxm_*" type="bbox" indexed="true" stored="true" multiValued="true" />
   <!--
-    Until https://issues.apache.org/jira/browse/SOLR-6781 is resolved, a static
-    field is needed instead. Replace "name" with the appropriate Solr field
-    name.
+    If you are using a Solr version lower than 4.10.3, dynamic fields using
+    class "solr.BBoxField" don't work. You therefore have to add static fields
+    for all fields that you want to index as "Location area (WKT)". To obtain
+    the Solr field name, prepend "bboxs_" (or bboxm_", for multi-valued fields)
+    to the Search API field machine name, and replace all colons with dollar
+    signs. See the following example for field "field_geodata:geom".
+    See https://issues.apache.org/jira/browse/SOLR-6784 for the Solr bug.
   -->
-  <field name="bboxs_field_geodata$geom" type="bbox" indexed="true" stored="true" multiValued="false" />
+  <!-- <field name="bboxs_field_geodata$geom" type="bbox" indexed="true" stored="true" multiValued="false" /> -->
 </fields>
