@@ -112,6 +112,13 @@ class SearchApiLocationSolrBboxfieldViewsHandlerFilter extends SearchApiViewsHan
       $instance['widget'] = $widget;
       $instance['widget']['type'] = $widget_id;
       $instance['widget']['settings'] = $this->options["widget-$widget_id"];
+
+      // Add compatibility with the Leaflet Widget (#2490100).
+      $instance['field_name'] = $field ? $field['field_name'] : NULL;
+      $instance['label'] = '';
+      $instance['description'] = '';
+      $instance['required'] = FALSE;
+
       $langcode = $GLOBALS['language']->language;
       $items = array($this->value ? $this->value : '');
       $delta = 0;
